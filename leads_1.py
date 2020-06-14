@@ -61,17 +61,15 @@ def create_map_deck(leads):
 def get_table_download_link(df):
   csv = df.to_csv(index=False)
   b64 = base64.b64encode(csv.encode()).decode()
-  href = f'<a href="data:file/csv;base64,{b64}" download="leads.csv">Download arquivo de sugestões para o portfólio</a>'
+  href = f'<a href="data:file/csv;base64,{b64}" download="leads.csv">Download arquivo de sugestões</a>'
   #href = f'<a href="data:file/csv;base64,{b64}">Download arquivo de sugestões</a>'
   return href
 
 def main():
     st.image('logo.png', width=400)
     st.title('AceleraDev Data Science - Projeto Final')
-    st.subheader('Sistema de recomendação de novos clientes')
-    st.markdown('Desenvolvido por: **Ronaldo Regis Posser**  \n GitHub do projeto: https://github.com/rrpronaldo/Codenation_Leads')
-
-    st.markdown('**Nota:** Esta página está apenas apresentando os resultados do treino com um portfólio hipotético. O treinamento completo do modelo e geração de recomendações foi prejudicado devido restrições de memória do servidor. Estamos trabalhando para oferecer a experiência completa do serviço.')
+    st.subheader('Ronaldo Regis Posser - Sistema de recomendação de novos clientes')
+    
     
     label_enc = LabelEncoder()
 
@@ -81,7 +79,7 @@ def main():
     st.subheader('Visualização base de dados')
 
     st.markdown('A base possui ' + str(base.shape[0]) + ' empresas, com ' + str(base.shape[1]) + ' variáveis que diferenciam as empresas por faturamento, ramo de atividade e localização.')
-    st.dataframe(base.head(20))
+    st.dataframe(base.head())
 
     
     base.groupby('sg_uf')['setor'].apply(pd.Series.value_counts).unstack().plot.bar(figsize = (10,5))
@@ -118,64 +116,66 @@ def main():
     features_cat = ['sg_uf',	'setor', 'idade_emp_cat', 'nm_divisao', 'de_saude_tributaria',
                 'de_saude_rescencia', 'de_nivel_atividade', 'nm_meso_regiao',
                 'nm_micro_regiao', 'de_faixa_faturamento_estimado']
-    #base_dummies = pd.get_dummies(base, columns=features_cat)
+    base_dummies = pd.get_dummies(base, columns=features_cat)
 
     #Treinamento modelo
-    #qtd_neighbors = 5
-    #model = NearestNeighbors(n_neighbors=qtd_neighbors, metric = 'cosine')
-    #Modelo KNN necessita 800MB de memória
-    #model.fit(base_dummies)
+    qtd_neighbors = 5
+    model = NearestNeighbors(n_neighbors=qtd_neighbors, metric = 'cosine')
+    model.fit(base_dummies)
 
     #Gerando sugestões com base em uma portfólio
     st.subheader('Recomendação de novos clientes')
+    st.markdown('Escolha o arquivo com o portfólio que deseja analisar (.csv)')
+    file  = st.file_uploader(' ',type = 'csv')
     
-    #st.markdown('Escolha o arquivo com o portfólio que deseja analisar (.csv)')
-    #file  = st.file_uploader(' ',type = 'csv')
-    
-    #if file is not None:
-    portfolio = pd.read_csv('portfolio1.csv')
-    portfolio['id'] = label_enc.transform(portfolio['id'])
-    portfolio.set_index(['id'], inplace=True)
-    portfolio = base.loc[portfolio.index.to_list()]
+    if file is not None:
+        portfolio = pd.read_csv(file)
+        portfolio['id'] = label_enc.transform(portfolio['id'])
+        portfolio.set_index(['id'], inplace=True)
+        portfolio = base.loc[portfolio.index.to_list()]
 
-    st.markdown('A portfólio possui ' + str(portfolio.shape[0]) + ' empresas.')
-    
-    #Visualização dados Portfólio
-    portfolio.groupby('sg_uf')['setor'].apply(pd.Series.value_counts).unstack().plot.bar(figsize = (10,5))
-    plt.title('Portfólio - Distribuição dos setores nos estados')
-    plt.xticks(rotation='horizontal')
-    plt.xlabel('Estados')
-    st.pyplot()
+        st.markdown('A portfólio possui ' + str(portfolio.shape[0]) + ' empresas.')
+        
+        #Visualização dados Portfólio
+        portfolio.groupby('sg_uf')['setor'].apply(pd.Series.value_counts).unstack().plot.bar(figsize = (10,5))
+        plt.title('Portfólio - Distribuição dos setores nos estados')
+        plt.xticks(rotation='horizontal')
+        plt.xlabel('Estados')
+        st.pyplot()
 
-    port_aux = portfolio[['setor', 'de_faixa_faturamento_estimado']]
-    port_aux['porte'] = port_aux['de_faixa_faturamento_estimado'].map(dict_porte)
+        port_aux = portfolio[['setor', 'de_faixa_faturamento_estimado']]
+        port_aux['porte'] = port_aux['de_faixa_faturamento_estimado'].map(dict_porte)
 
-    port_aux.groupby('setor')['porte'].apply(pd.Series.value_counts).unstack().plot.bar(figsize = (10,5), log=True)
-    plt.title('Portfólio - Distribuição dos portes de empresa por setores')
-    plt.xticks(rotation='horizontal')
-    plt.xlabel('Estados')
-    st.pyplot()
+        port_aux.groupby('setor')['porte'].apply(pd.Series.value_counts).unstack().plot.bar(figsize = (10,5), log=True)
+        plt.title('Portfólio - Distribuição dos portes de empresa por setores')
+        plt.xticks(rotation='horizontal')
+        plt.xlabel('Estados')
+        st.pyplot()
 
+        portfolio_train = base_dummies.loc[portfolio.index.to_list()]
 
-    #Visualização Leads Geradas
-    leads_port = pd.read_csv('portfolio1_leads.csv', index_col=0)
-    
-    st.markdown('Primeiras 50 sugestões geradas pelo modelo.\n As marcadas em azul são clientes atuais e as quatro seguintes as sugestões de novos clientes.')
-    st.dataframe(leads_port.head(50).style.apply(lambda x: ['background: #5cade2' if (x.name % 5 == 0) else ' ' for i in x], 
-                axis=1))
+        previsao_port = model.kneighbors(portfolio_train, return_distance=False)
 
-    
-    #Adicionando Latitude e Longitude ao conjunto de dados previstos para visualização no mapa
-    lat_long = pd.read_csv('lat_long_micro.csv')
-    leads_port['lat'] = leads_port['nm_micro_regiao'].apply(lambda micro: lat_long[lat_long['nm_micro'] == micro]['lat'].values[0])
-    leads_port['lng'] = leads_port['nm_micro_regiao'].apply(lambda micro: lat_long[lat_long['nm_micro'] == micro]['lng'].values[0])
-    leads_port.reset_index(inplace=True)
+        leads_port = base.iloc[previsao_port.reshape(-1)]
 
-    st.markdown('Mapa 30 primeiras recomendações')
-    st.markdown('Marcadores vermelhos são atuais clientes. Marcadores azuis são recomendações.')
-    st.pydeck_chart(create_map_deck(leads_port))
-    
-    #st.markdown(get_table_download_link(leads_port), unsafe_allow_html=True)
+        leads_port.reset_index(inplace=True)
+
+        st.markdown('Primeiras 20 sugestões geradas pelo modelo.\n As marcadas em azul são clientes atuais e as quatro seguintes as sugestões de novos clientes.')
+        st.dataframe(leads_port.head(20).style.apply(lambda x: ['background: #5cade2' if (x.name % 5 == 0) else ' ' for i in x], 
+                    axis=1))
+
+        
+        #Adicionando Latitude e Longitude ao conjunto de dados previstos para visualização no mapa
+        lat_long = pd.read_csv('lat_long_micro.csv')
+        leads_port['lat'] = leads_port['nm_micro_regiao'].apply(lambda micro: lat_long[lat_long['nm_micro'] == micro]['lat'].values[0])
+        leads_port['lng'] = leads_port['nm_micro_regiao'].apply(lambda micro: lat_long[lat_long['nm_micro'] == micro]['lng'].values[0])
+        leads_port.reset_index(inplace=True)
+
+        st.markdown('Mapa 30 primeiras recomendações')
+        st.markdown('Marcadores vermelhos são atuais clientes. Marcadores azuis são recomendações.')
+        st.pydeck_chart(create_map_deck(leads_port))
+        
+        st.markdown(get_table_download_link(leads_port), unsafe_allow_html=True)
 
 
 
