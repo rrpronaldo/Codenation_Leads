@@ -71,6 +71,15 @@ def main():
     st.subheader('Ronaldo Regis Posser - Sistema de recomendação de novos clientes')
     
     
+    label_enc = LabelEncoder()
+
+    base = pd.read_csv('base.zip')
+    base['id'] = label_enc.fit_transform(base['id'])
+    
+    st.subheader('Visualização base de dados')
+
+    st.markdown('A base possui ' + str(base.shape[0]) + ' empresas, com ' + str(base.shape[1]) + ' variáveis que diferenciam as empresas por faturamento, ramo de atividade e localização.')
+    st.dataframe(base.head())
 
 
 
