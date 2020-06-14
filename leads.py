@@ -92,15 +92,6 @@ def main():
     #Treinamento modelo
     qtd_neighbors = 5
     model = NearestNeighbors(n_neighbors=qtd_neighbors, metric = 'cosine')
-    model.fit(base_dummies)
-
-    #Gerando sugestões com base em uma portfólio
-    st.subheader('Recomendação de novos clientes')
-    st.markdown('Escolha o arquivo com o portfólio que deseja analisar (.csv)')
-    file  = st.file_uploader(' ',type = 'csv')
-    
-    if file is not None:
-        portfolio = pd.read_csv(file)
 
 
 
