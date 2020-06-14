@@ -81,6 +81,27 @@ def main():
     st.markdown('A base possui ' + str(base.shape[0]) + ' empresas, com ' + str(base.shape[1]) + ' variáveis que diferenciam as empresas por faturamento, ramo de atividade e localização.')
     st.dataframe(base.head())
 
+    #Engenharia de features
+    base.set_index(['id'], inplace=True)
+
+    features_cat = ['sg_uf',	'setor', 'idade_emp_cat', 'nm_divisao', 'de_saude_tributaria',
+                'de_saude_rescencia', 'de_nivel_atividade', 'nm_meso_regiao',
+                'nm_micro_regiao', 'de_faixa_faturamento_estimado']
+    base_dummies = pd.get_dummies(base, columns=features_cat)
+
+    #Treinamento modelo
+    qtd_neighbors = 5
+    model = NearestNeighbors(n_neighbors=qtd_neighbors, metric = 'cosine')
+    model.fit(base_dummies)
+
+    #Gerando sugestões com base em uma portfólio
+    st.subheader('Recomendação de novos clientes')
+    st.markdown('Escolha o arquivo com o portfólio que deseja analisar (.csv)')
+    file  = st.file_uploader(' ',type = 'csv')
+    
+    if file is not None:
+        portfolio = pd.read_csv(file)
+
 
 
 if __name__ == '__main__':
